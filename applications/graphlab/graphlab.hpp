@@ -90,7 +90,7 @@ struct GraphlabVertexProgram {
 
   GatherType cache;
 
-  GraphlabVertexProgram(): cache() {}
+  GraphlabVertexProgram(): cache() { }
 
   void post_delta(GatherType d) { cache += d; }
   void reset() { cache = GatherType(); }

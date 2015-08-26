@@ -1,0 +1,1 @@
+./grappa_srun --nnode=1 --ppn=1 --freeze-on-error -- ../build/Make+Release/applications/graphlab/lp_simple_golnoosh.exe --v=1  --path /sampa/home/zeinab/NData/LP/risk_score/totalNetwork --format "mm" --seedsPath /sampa/home/zeinab/NData/LP/risk_score/0.1totalNetwork.seeds1 --outputPath /sampa/home/zeinab/NData/LP/risk_score/0.1totalNetworkwithRiskScore.mm

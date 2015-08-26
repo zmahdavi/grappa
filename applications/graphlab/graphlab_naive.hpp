@@ -33,6 +33,9 @@
 // Simplified GraphLab API, implemented for Grappa's builtin Graph structure.
 // (included from graphlab.hpp)
 #pragma once
+#include <iostream>
+#include <fstream>
+
 
 /// Additional vertex state needed for GraphLab engine. Your Graph's VertexData
 /// must be a subclass of this to use the NaiveGraphlabEngine.
@@ -91,10 +94,11 @@ struct NaiveGraphlabEngine {
   using Vertex = typename G::Vertex;
   using Edge = typename G::Edge;
   using Gather = typename VertexProg::Gather;
-  
+  static std::string OutputPath;
   static GlobalAddress<G> g;
   static Reducer<int64_t,ReducerType::Add> ct;
-  
+  static int Number_of_groups;
+
   static VertexProg& prog(Vertex& v) {
     return *static_cast<VertexProg*>(v->prog);
   }
@@ -104,7 +108,7 @@ struct NaiveGraphlabEngine {
     call<async>(e.ga, [=](Vertex& ve){
       auto gather_delta = prog_copy.scatter(ve);
       prog(ve).post_delta(gather_delta);
-    });
+    }); 
   }
   
   static void _do_scatter(const VertexProg& prog_copy, Edge& e,
@@ -158,7 +162,7 @@ struct NaiveGraphlabEngine {
       forall(g, [=](Vertex& v){
         if (!v->active) return;
         v->deactivate();
-        
+
         auto& p = prog(v);
 
         // apply
@@ -177,11 +181,39 @@ struct NaiveGraphlabEngine {
           });
         }
       });
-    
-      iteration++;
+  
+  {
+    symmetric_static std::ofstream myFile;
+    //std::ofstream myFile;
+    int pid = getpid();
+    LOG(INFO) << "start writing file";
+    std::string path = NaiveGraphlabEngine<G,VertexProg>::OutputPath;
+      //on_all_cores( [pid, iteration, path] {
+          std::ostringstream oss;
+          oss << OutputPath << "-" << pid << "-" << mycore() << "-" << iteration;
+          new (&myFile) std::ofstream(oss.str());
+          if (!myFile.is_open()) exit(1);
+        //});
+      forall(g, [](VertexID i, Vertex& v){ 
+          // LOG(INFO) << "id: " << i << " label: " << v->label;
+          myFile << i << " ";
+          for (int j = 0; j < NaiveGraphlabEngine<G,VertexProg>::Number_of_groups; j++) {
+            myFile << prog(v).cache.label_count[j] << " ";
+          }
+          myFile << v->label << "\n";
+        });
+      //on_all_cores( [] {
+          myFile.close();
+        //});
+    LOG(INFO) << "end writig file";
+    }
+      iteration++; 
       VLOG(1) << "  time:   " << walltime()-t;
       active = V::total_active;
+    
     }
+  
+  
 
     forall(g, [](Vertex& v){ delete static_cast<VertexProg*>(v->prog); });
   }
@@ -192,3 +224,9 @@ GlobalAddress<G> NaiveGraphlabEngine<G,VertexProg>::g;
 
 template< typename G, typename VertexProg >
 Reducer<int64_t,ReducerType::Add> NaiveGraphlabEngine<G,VertexProg>::ct;
+
+template< typename G, typename VertexProg >
+std::string NaiveGraphlabEngine<G,VertexProg>::OutputPath;
+
+template< typename G, typename VertexProg >
+int NaiveGraphlabEngine<G,VertexProg>::Number_of_groups;
